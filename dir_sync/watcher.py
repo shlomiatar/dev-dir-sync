@@ -1,11 +1,12 @@
+import os
 import subprocess
 import threading
 import time
 from watchdog.observers import Observer
-from .change_handler import ChangeHandler
+from change_handler import ChangeHandler
 
+DEFAULT_EXCLUDES = ['.vagrant', '.git', '.pyc', '.tmp']
 import logging
-
 
 class Watcher(object):
     """
@@ -27,7 +28,6 @@ class Watcher(object):
 
         self.sync_timer = None
 
-
         # Setup our watchdog observer
         observer = Observer()
         observer.schedule(ChangeHandler(self.on_file_changed), path=config.directory, recursive=True)
@@ -36,7 +36,6 @@ class Watcher(object):
         logging.info("Starting change tracker, cmd: {}, dir: {}, delay: {}".format(config.sync_cmd,
                                                                                    config.directory,
                                                                                    config.delay))
-
         try:
             while True:
                 time.sleep(0.5)
@@ -73,7 +72,7 @@ class Watcher(object):
         """
 
         # Clear pending files
-        files = self.pending_files
+        files = self.pending_files.copy()
         self.pending_files = set()
 
         cmd = self.config.sync_cmd
@@ -86,7 +85,7 @@ class Watcher(object):
         # Add exclusion patterns
         cmd += self._generate_excludes()
 
-        logging.info("[sync] ({} files) {}".format(len(files)), cmd)
+        logging.info("[sync] ({} files) {}".format(len(files), cmd))
 
         # Execute the command
         subprocess.call(cmd, shell=True)
@@ -96,19 +95,29 @@ class Watcher(object):
         Convert a list of files to a list of --include= arguments
         """
 
-        args = ["--include={}".format(f) for f in files]
+        args = ["--include '{}'".format(self._normalize_path(f)) for f in files]
 
         # Add a global exclude
-        args.append("--exclude=*")
+        args.append("--exclude '*'")
 
-        return " ".join(args)
+        return " " + " ".join(args)
 
     def _generate_excludes(self):
         """
         Generate --exclude arguments
         """
 
-        excludes = ["--exclude={}".format(f.strip()) for f in self.config.filter_regexp.split(',')]
+        items = DEFAULT_EXCLUDES + [f.strip() for f in self.config.filter_regexp.split(',')]
 
-        return " ".join(excludes)
+        excludes = ["--exclude '{}'".format(f) for f in items if f]
+
+        return " " + " ".join(excludes)
+
+    def _normalize_path(self, path):
+        """
+        Convert absolute path to relative based on the working directory
+        """
+        return os.path.relpath(path, self.config.directory)
+
+
 
