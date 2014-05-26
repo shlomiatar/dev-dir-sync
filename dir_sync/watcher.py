@@ -8,6 +8,7 @@ from change_handler import ChangeHandler
 DEFAULT_EXCLUDES = ['.vagrant', '.git', '.pyc', '.tmp']
 import logging
 
+
 class Watcher(object):
     """
     Wathcer
@@ -22,6 +23,7 @@ class Watcher(object):
         Initialize the watcher, use the config passed from main
         """
         self.config = config
+
 
         # List of pending files
         self.pending_files = set()
@@ -64,7 +66,6 @@ class Watcher(object):
         self.sync_timer = threading.Timer(self.config.delay, self.sync)
         # Start the sync timer
         self.sync_timer.start()
-
 
     def sync(self):
         """
